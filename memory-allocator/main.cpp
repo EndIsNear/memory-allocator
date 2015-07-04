@@ -88,6 +88,65 @@ TEST_CASE("MemoryAllocator")
 				}
 			}
 			res = static_cast<char*>(alloc.alloc(1));
+			CHECK(res != NULL);
+			res = static_cast<char*>(alloc.alloc(1));
+			CHECK(res == NULL);
+			res = static_cast<char*>(alloc.alloc(504));
+			CHECK(res == NULL);
+			res = static_cast<char*>(alloc.alloc(1016));
+			CHECK(res == NULL);
+		}
+
+		SECTION("Max size in 2 passes")
+		{
+			Allocator alloc(1024, 16);
+			char * res;
+			for (int j = 0; j < 2; ++j)
+			{
+				res = static_cast<char*>(alloc.alloc(504));
+				REQUIRE(res != NULL);
+
+				//just use it for potential errors
+				for (int i = 0; i < 504; ++i)
+				{
+					res[i]++;
+				}
+			}
+
+			res = static_cast<char*>(alloc.alloc(8));
+			CHECK(res == NULL);
+			res = static_cast<char*>(alloc.alloc(504));
+			CHECK(res == NULL);
+			res = static_cast<char*>(alloc.alloc(1016));
+			CHECK(res == NULL);
+		}
+
+		SECTION("Max size in 2 passes")
+		{
+			Allocator alloc(1024, 16);
+			char * res;
+			for (int j = 0; j < 32; ++j)
+			{
+				res = static_cast<char*>(alloc.alloc(8));
+				REQUIRE(res != NULL);
+
+				for (int i = 0; i < 8; ++i)
+				{
+					res[i]++;
+				}
+			}
+			for (int j = 0; j < 32; ++j)
+			{
+				res = static_cast<char*>(alloc.alloc(8));
+				REQUIRE(res != NULL);
+
+				for (int i = 0; i < 8; ++i)
+				{
+					res[i]++;
+				}
+			}
+
+			res = static_cast<char*>(alloc.alloc(1));
 			CHECK(res == NULL);
 			res = static_cast<char*>(alloc.alloc(504));
 			CHECK(res == NULL);
