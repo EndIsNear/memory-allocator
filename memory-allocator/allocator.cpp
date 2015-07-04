@@ -72,7 +72,7 @@ void Allocator::Split(size_t startIdx, size_t wantedIdx)
 void Allocator::InitLists()
 {
 	size_t crnSize = m_RawMaxSize;
-	while (crnSize >= m_MinChunkSize)
+	while (crnSize > m_MinChunkSize)
 	{
 		m_FreeLists.push_back(ListOfFree(crnSize - sizeof(BlockHeader)));
 		crnSize >>= 1;

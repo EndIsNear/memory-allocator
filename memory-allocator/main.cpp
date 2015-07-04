@@ -74,7 +74,7 @@ TEST_CASE("MemoryAllocator")
 			CHECK(res == NULL);
 		}
 
-		SECTION("Alway the half of free mem")
+		SECTION("Always the half of free mem")
 		{
 			Allocator alloc(1024, 16);
 			char * res;
@@ -87,6 +87,12 @@ TEST_CASE("MemoryAllocator")
 					res[i]++;
 				}
 			}
+			res = static_cast<char*>(alloc.alloc(1));
+			CHECK(res == NULL);
+			res = static_cast<char*>(alloc.alloc(504));
+			CHECK(res == NULL);
+			res = static_cast<char*>(alloc.alloc(1016));
+			CHECK(res == NULL);
 		}
 	}
 }
