@@ -1,12 +1,15 @@
 #include <exception>
 #include <vector>
 
+typedef char BYTE;
+
 #include "allocator.h"
+
 
 Allocator::Allocator(size_t cap, size_t min)
 {
 	SetCapacity(cap);
-	m_MinChunkSize = (min < 16 || (min & (min - 1))) ? 16 : min;
+	m_MinBlockSize = (min < 16 || (min & (min - 1))) ? 16 : min;
 
 	m_RawBuffer = static_cast<BYTE*>(malloc(m_RawMaxSize));
 	if (!m_RawBuffer)
@@ -17,7 +20,8 @@ Allocator::Allocator(size_t cap, size_t min)
 
 Allocator::~Allocator()
 {
-	free(m_RawBuffer);
+	//real free not mine :)
+	::free(m_RawBuffer);
 }
 
 void * Allocator::alloc(size_t size)
@@ -54,7 +58,89 @@ void * Allocator::alloc(size_t size)
 
 void Allocator::free(void * ptr)
 {
+	//free NULL is OK
+	if (!ptr)
+		return;
 
+	//check is that ptr from this allocator
+	size_t diff = static_cast<BYTE *>(ptr) - m_RawBuffer;
+	size_t blockSize = getBlockSize(reinterpret_cast<BlockHeader*>(static_cast<BYTE *>(ptr)-8));
+	if (diff < 0 || diff > m_RawMaxSize || 
+		blockSize < m_MinBlockSize || m_RawMaxSize % blockSize ||
+		!isBlockUsed(reinterpret_cast<BlockHeader*>(static_cast<BYTE *>(ptr) - 8)))
+	{
+		throw std::exception("Bad free");
+	}
+
+	//move the ptr to block header
+	BYTE * chPtr = static_cast<BYTE *>(ptr)-8;
+	chPtr = Merge(chPtr);
+
+	blockSize = getBlockSize(reinterpret_cast<BlockHeader*>(chPtr));
+	for (int i = 0; i < m_FreeLists.size(); i++)
+	{
+		if (m_FreeLists[i].size == blockSize - sizeof(BlockHeader))
+		{
+			reinterpret_cast<Free*>(chPtr + 8)->next = m_FreeLists[i].first;
+			m_FreeLists[i].first = reinterpret_cast<Free*>(chPtr + 8);
+			setBlockUsage(reinterpret_cast<BlockHeader*>(static_cast<BYTE *>(chPtr)), false);
+			return;
+		}
+	}
+}
+
+BYTE * Allocator::Merge(BYTE * ptr)
+{
+	size_t blockSize = getBlockSize(reinterpret_cast<BlockHeader*>(ptr));
+	if (blockSize == m_RawMaxSize)
+		return ptr;
+
+	//size_t order = static_cast<size_t>(log2(blockSize) + 0.5);
+	//BYTE * buddyPtr = ((ptr - m_RawBuffer) ^ (1 << order)) + m_RawBuffer;
+	bool isOdd = ((ptr - m_RawBuffer) / blockSize) % 2;
+	BYTE * buddyPtr = isOdd ? ptr - blockSize : ptr + blockSize;
+
+	//buddy in use
+	if (isBlockUsed(reinterpret_cast<BlockHeader*>(buddyPtr)))
+	{
+		return ptr;
+	}
+	//the buddy is free
+	else
+	{
+		//remove merged buddy from list of free
+		for (int i = 0; i < m_FreeLists.size(); i++)
+		{
+			if (m_FreeLists[i].size == blockSize - sizeof(BlockHeader))
+			{
+				if (m_FreeLists[i].first == reinterpret_cast<Free*>(buddyPtr + 8))
+				{
+					m_FreeLists[i].first = m_FreeLists[i].first->next;
+				}
+				else
+				{
+					Free *it = m_FreeLists[i].first;
+					while (it->next != reinterpret_cast<Free*>(buddyPtr + 8))
+						it++;
+
+					it->next = it->next->next;
+				}
+
+				if (buddyPtr < ptr)
+					ptr = buddyPtr;
+
+				i--;
+				reinterpret_cast<Free*>(ptr + 8)->next = m_FreeLists[i].first;
+				m_FreeLists[i].first = reinterpret_cast<Free*>(ptr + 8);
+				setBlockUsage(reinterpret_cast<BlockHeader*>(static_cast<BYTE *>(ptr)), false);
+
+				break;
+			}
+		}
+
+		setBlockSize(reinterpret_cast<BlockHeader*>(ptr), blockSize * 2);
+		return Merge(ptr);
+	}
 }
 
 void Allocator::Split(size_t startIdx, size_t wantedIdx)
@@ -72,7 +158,7 @@ void Allocator::Split(size_t startIdx, size_t wantedIdx)
 void Allocator::InitLists()
 {
 	size_t crnSize = m_RawMaxSize;
-	while (crnSize >= m_MinChunkSize)
+	while (crnSize >= m_MinBlockSize)
 	{
 		m_FreeLists.push_back(ListOfFree(crnSize - sizeof(BlockHeader)));
 		crnSize >>= 1;

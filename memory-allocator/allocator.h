@@ -7,8 +7,6 @@ const size_t DEFAULT_PAGE_SIZE = 1024 * 4;
 
 class Allocator
 {
-	typedef char BYTE;
-
 	struct Free
 	{
 		Free(Free * _next = NULL) : next(_next) {}
@@ -60,18 +58,19 @@ public:
 	void free(void * address);
 
 	size_t GetSize() { return m_RawMaxSize; }
-	size_t GetMinChunkSize() { return m_MinChunkSize; }
+	size_t GetMinChunkSize() { return m_MinBlockSize; }
 
 private:
 	BYTE * m_RawBuffer;
 	size_t m_RawMaxSize;
-	size_t m_MinChunkSize;
+	size_t m_MinBlockSize;
 	std::vector<ListOfFree> m_FreeLists;
 
 	void InitLists();
 	void SetCapacity(size_t cap);
 	void Split(size_t startIdx, size_t wantedIdx);
 	void InitBlock(BYTE * buff, size_t size, size_t idxToPush);
+	BYTE * Merge(BYTE * ptr);
 };
 
 #endif //__ALLOCATOR_H__

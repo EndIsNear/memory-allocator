@@ -125,17 +125,7 @@ TEST_CASE("MemoryAllocator")
 		{
 			Allocator alloc(1024, 16);
 			char * res;
-			for (int j = 0; j < 32; ++j)
-			{
-				res = static_cast<char*>(alloc.alloc(8));
-				REQUIRE(res != NULL);
-
-				for (int i = 0; i < 8; ++i)
-				{
-					res[i]++;
-				}
-			}
-			for (int j = 0; j < 32; ++j)
+			for (int j = 0; j < 64; ++j)
 			{
 				res = static_cast<char*>(alloc.alloc(8));
 				REQUIRE(res != NULL);
@@ -152,6 +142,62 @@ TEST_CASE("MemoryAllocator")
 			CHECK(res == NULL);
 			res = static_cast<char*>(alloc.alloc(1016));
 			CHECK(res == NULL);
+		}
+	}
+
+	SECTION("alloc free alloc")
+	{
+		SECTION("one - one")
+		{
+			Allocator alloc(1024, 16);
+			char * res = static_cast<char*>(alloc.alloc(1016));
+			CHECK(res != NULL);
+			alloc.free(res);
+			res = NULL;
+			res = static_cast<char*>(alloc.alloc(1016));
+			CHECK(res != NULL);
+		}
+
+		SECTION("one small - biggest")
+		{
+			Allocator alloc(1024, 16);
+			char * res = static_cast<char*>(alloc.alloc(8));
+			CHECK(res != NULL);
+			alloc.free(res);
+			res = NULL;
+			res = static_cast<char*>(alloc.alloc(1016));
+			CHECK(res != NULL);
+		}
+
+		SECTION("two - one")
+		{
+			Allocator alloc(1024, 16);
+			char * res1 = static_cast<char*>(alloc.alloc(504));
+			char * res2 = static_cast<char*>(alloc.alloc(504));
+			CHECK(res1 != NULL);
+			CHECK(res2 != NULL);
+			alloc.free(res1);
+			alloc.free(res2);
+			res1 = NULL;
+			res1 = static_cast<char*>(alloc.alloc(1016));
+			CHECK(res1 != NULL);
+		}
+
+		SECTION("two - two")
+		{
+			Allocator alloc(1024, 16);
+			char * res1 = static_cast<char*>(alloc.alloc(504));
+			char * res2 = static_cast<char*>(alloc.alloc(504));
+			CHECK(res1 != NULL);
+			CHECK(res2 != NULL);
+			alloc.free(res1);
+			alloc.free(res2);
+			res1 = NULL;
+			res1 = static_cast<char*>(alloc.alloc(504));
+			res2 = NULL;
+			res2 = static_cast<char*>(alloc.alloc(504));
+			CHECK(res1 != NULL);
+			CHECK(res2 != NULL);
 		}
 	}
 }
