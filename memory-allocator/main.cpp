@@ -47,6 +47,46 @@ TEST_CASE("MemoryAllocator")
 
 	SECTION("Alloc")
 	{
+		SECTION("Bad allocs")
+		{
+			Allocator alloc(1024, 16);
+			CHECK(alloc.alloc(0) == NULL);
+			CHECK(alloc.alloc(1025) == NULL);
+			CHECK(alloc.alloc(-1) == NULL);
+		}
 
+		SECTION("The whole size")
+		{
+			Allocator alloc(1024, 16);
+			char * res = static_cast<char*>(alloc.alloc(1016));
+			REQUIRE(res != NULL);
+
+			//just use it for potential errors
+			for (int i = 0; i < 1016; ++i)
+			{
+				res[i]++;
+			}
+			res = static_cast<char*>(alloc.alloc(1));
+			CHECK(res == NULL);
+			res = static_cast<char*>(alloc.alloc(504));
+			CHECK(res == NULL);
+			res = static_cast<char*>(alloc.alloc(1016));
+			CHECK(res == NULL);
+		}
+
+		SECTION("Alway the half of free mem")
+		{
+			Allocator alloc(1024, 16);
+			char * res;
+			for (int i = 512; i >= 16; i /= 2)
+			{
+				res = static_cast<char*>(alloc.alloc(i - 8));
+				REQUIRE(res != NULL);
+				for (int i = 0; i < i - 8; ++i)
+				{
+					res[i]++;
+				}
+			}
+		}
 	}
 }
